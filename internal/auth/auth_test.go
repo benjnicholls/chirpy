@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -72,7 +73,6 @@ func TestCheckPasswordHash(t *testing.T) {
 }
 
 func TestValidateJWT(t *testing.T) {
-	// First, we need to create some hashed passwords for testing
 	realSecretKey := "thisisareallysecretkey"
 	fakeSecretKey := "thisisareallyfakesecretkey"
 	userId, _ := uuid.NewUUID()
@@ -121,4 +121,52 @@ func TestValidateJWT(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetBearerToken(t *testing.T) {
+	want := "token"
+	validHeader := http.Header{
+		"Authorization": []string{"Bearer token"},
+	}
+	notAuthHeader := http.Header{
+		"Content-Type": []string{"application/json"},
+	}
+	noBearerHeader := http.Header{
+		"Authorization": []string{"token"},
+	}
+
+	tests := []struct {
+		name    string
+		headers http.Header
+		wantErr bool
+	}{
+		{
+			name:    "Valid Authorization Header",
+			headers: validHeader,
+			wantErr: false,
+		},
+		{
+			name:    "Not Auth Header",
+			headers: notAuthHeader,
+			wantErr: true,
+		},
+		{
+			name:    "No Bearer in Header",
+			headers: noBearerHeader,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			token, err := GetBearerToken(tt.headers)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetBearerToken() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !tt.wantErr && want != token {
+				t.Errorf("GetBearerToken() expects %v, got %v", want, token)
+			}
+		})
+	}
+
 }

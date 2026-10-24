@@ -2,6 +2,7 @@ package main
 
 import (
 	"chirpy/internal/auth"
+	"chirpy/internal/database"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -11,12 +12,12 @@ import (
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Email            string `json:"email"`
-		Password         string `json:"password"`
-		ExpiresInSeconds *int   `json:"expires_in_seconds"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 	type response struct {
-		Token string `json:"token"`
+		Token        string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
 		User
 	}
 
@@ -48,25 +49,28 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var expirationTime time.Duration
-	if params.ExpiresInSeconds != nil {
-		expirationTime = time.Duration(*params.ExpiresInSeconds) * time.Second
-	} else {
-		expirationTime = 1 * time.Hour
-	}
-
-	token, err := auth.MakeJWT(user.ID, cfg.secretKey, expirationTime)
+	token, err := auth.MakeJWT(user.ID, cfg.secretKey, 1*time.Hour)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Problem creating JWT", err)
 	}
 
+	refreshToken, err := cfg.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
+		Token:  auth.MakeRefreshToken(),
+		UserID: user.ID,
+	})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Problem creating refresh token", err)
+	}
+
 	respondWithJSON(w, http.StatusOK, response{
 		User: User{
-			Id:        user.ID,
-			CreatedAt: user.CreatedAt,
-			UpdatedAt: user.UpdatedAt,
-			Email:     user.Email,
+			Id:          user.ID,
+			CreatedAt:   user.CreatedAt,
+			UpdatedAt:   user.UpdatedAt,
+			Email:       user.Email,
+			IsChirpyRed: user.IsChirpyRed,
 		},
-		Token: token,
+		Token:        token,
+		RefreshToken: refreshToken.Token,
 	})
 }

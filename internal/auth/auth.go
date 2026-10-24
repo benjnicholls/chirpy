@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -85,4 +87,24 @@ func GetBearerToken(headers http.Header) (string, error) {
 	}
 
 	return strings.TrimSpace(strings.TrimPrefix(authorizationHeader, "Bearer")), nil
+}
+
+func MakeRefreshToken() string {
+	refreshToken := make([]byte, 32)
+	rand.Read(refreshToken)
+
+	return hex.EncodeToString(refreshToken)
+}
+
+func GetAPIKey(headers http.Header) (string, error) {
+	authorizationHeader := headers.Get("Authorization")
+	if authorizationHeader == "" {
+		return "", errors.New("Authorization header not found")
+	}
+
+	if !strings.HasPrefix(authorizationHeader, "ApiKey") {
+		return "", errors.New("Authorization header must start with ApiKey")
+	}
+
+	return strings.TrimSpace(strings.TrimPrefix(authorizationHeader, "ApiKey")), nil
 }

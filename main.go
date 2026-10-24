@@ -15,6 +15,7 @@ type apiConfig struct {
 	db             *database.Queries
 	platform       string
 	secretKey      string
+	polkaKey       string
 }
 
 func main() {
@@ -29,6 +30,7 @@ func main() {
 	dbURL := getEnvVariable("DB_URL")
 	platform := getEnvVariable("PLATFORM")
 	secretString := getEnvVariable("SECRET")
+	polkaKey := getEnvVariable("POLKA_KEY")
 
 	conn, err := sql.Open("postgres", dbURL)
 	if err != nil {
@@ -42,6 +44,7 @@ func main() {
 		db:             dbQueries,
 		platform:       platform,
 		secretKey:      secretString,
+		polkaKey:       polkaKey,
 	}
 
 	mux := http.NewServeMux()
@@ -54,9 +57,15 @@ func main() {
 	mux.HandleFunc("GET /api/chirps", apiCfg.handlerGetAllChirps)
 	mux.HandleFunc("GET /api/chirps/{id}", apiCfg.handlerGetSingleChirp)
 	mux.HandleFunc("POST /api/chirps", apiCfg.handlerCreateChirp)
+	mux.HandleFunc("DELETE /api/chirps/{id}", apiCfg.handlerDeleteChirp)
 
 	mux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
+	mux.HandleFunc("PUT /api/users", apiCfg.handlerUpdateUser)
 	mux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
+	mux.HandleFunc("POST /api/refresh", apiCfg.handlerRefreshToken)
+	mux.HandleFunc("POST /api/revoke", apiCfg.handlerRevokeRefreshToken)
+
+	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.handlerPolkaWebhooks)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
